@@ -424,5 +424,4 @@ void action_view_results() {
     }
     system("pause");
 }
-//nothing to fix
-//i like toothy!!!!!!!!!!!!!!!
+ 
