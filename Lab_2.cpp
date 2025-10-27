@@ -424,5 +424,4 @@ void action_view_results() {
     }
     system("pause");
 }
-
-//fix n(warn user about it)
+//nothing to fix
