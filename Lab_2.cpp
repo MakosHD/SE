@@ -42,15 +42,15 @@ menu menu_manage_data;
 menu menu_manage_results;
 
 //Declarations of actions to use it in menu items
-variables_for_calculations action_input_data();
+variables_for_calculations action_input_data(std::istream& pipeline = std::cin);
 void action_edit_data();
-void action_calculate();
+void action_calculate(vector<variables_for_calculations>& data_for_calculations);
 void action_view_results();
 
 void menu_initialization() {
     menu_main = { "Main menu",{
         {"Manage data", []() {menu_current = menu_manage_data; }},
-        {"Calculate!", action_calculate},
+        {"Calculate!", [&]() {action_calculate(data_for_calculations); system("pause"); }},
         {"Manage results", []() {menu_current = menu_manage_results; current_index = 0; }}
         }
     };
@@ -218,43 +218,67 @@ int main() {
     }
     return 0; //end of the program, If this ever happens
 }
+int verify_n(std::istream& in) {
+    int n;
+    while (!(in >> n) || n <= 0) { // Validate input for n
+        in.clear();// Clear error flag on cin
+        in.ignore(std::numeric_limits<streamsize>::max(), '\n');// Discard invalid input
+        draw_error("Invalid input. Please enter n that greater than 0.");// Show error message
+        cout << "Enter n(n>0): ";// Prompt user to enter n again
+    }
+    return n;
+}
+
+double verify_lower_limit(std::istream& in) {
+    double lower_limit;
+    while (!(in >> lower_limit)) { 
+        in.clear();
+        in.ignore(std::numeric_limits<streamsize>::max(), '\n');
+        draw_error("Invalid input. Please enter number.");
+        cout << "Enter lower limit: ";
+    }
+    return lower_limit;
+}
+
+double verify_upper_limit(std::istream& in,double lower_limit) {
+    double upper_limit;
+    while (!(in >> upper_limit) || upper_limit <= lower_limit) {
+        in.clear();
+        in.ignore(std::numeric_limits<streamsize>::max(), '\n');
+        draw_error("Invalid input. Please enter upper limit that greater than lower limit (" + std::to_string(lower_limit) + ").");
+        cout << "Enter upper limit: ";
+    }
+    return upper_limit;
+}
+
+double verify_step(std::istream& in) {
+    double step;
+    while (!(in >> step) || step <= 0) {
+        in.clear();
+        in.ignore(std::numeric_limits<streamsize>::max(), '\n');
+        draw_error("Invalid input. Please enter step that greater than 0.");
+        cout << "Enter step(step>0): ";
+    }
+    return step;
+}
 
 // Function to input data for calculations from keyboard
-variables_for_calculations action_input_data() {
+variables_for_calculations action_input_data(std::istream& pipeline) {
 	variables_for_calculations new_data; //temporary variable to store new set of data
 	cout << "\033[2J\033[H"; // Clear console
 	draw_header("Input data"); // this function doen't have menu, so we draw header with name of action
     draw_message("Pay attention", "Hey, This system of equations has two intervals for n:\nn > 7 for the first expression and\nn > 0 for the second.\nConsider it!");
     cout << "Enter n(n>0): ";
-	while (!(cin >> new_data.n) || new_data.n <= 0) { // Validate input for n
-		cin.clear();// Clear error flag on cin
-		cin.ignore(std::numeric_limits<streamsize>::max(), '\n');// Discard invalid input
-		draw_error("Invalid input. Please enter n that greater than 0.");// Show error message
-		cout << "Enter n(n>0): ";// Prompt user to enter n again
-    }
-	//next inputs are validated in similar way
+    new_data.n = verify_n(pipeline);
+
     cout << "Enter lower limit: ";
-    while (!(cin >> new_data.lower_limit)) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<streamsize>::max(), '\n');
-        draw_error("Invalid input. Please enter number.");
-        cout << "Enter lower limit: ";
-    }
+    new_data.lower_limit = verify_lower_limit(pipeline);
 
     cout << "Enter upper limit: ";
-    while (!(cin >> new_data.upper_limit) || new_data.upper_limit <= new_data.lower_limit) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<streamsize>::max(), '\n');
-        draw_error("Invalid input. Please enter upper limit that greater than lower limit (" + std::to_string(new_data.lower_limit) + ").");
-        cout << "Enter upper limit: ";
-    }
+    new_data.upper_limit = verify_upper_limit(pipeline, new_data.lower_limit);
+
     cout << "Enter step: ";
-    while (!(cin >> new_data.step) || new_data.step <= 0) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<streamsize>::max(), '\n');
-        draw_error("Invalid input. Please enter step that greater than 0.");
-        cout << "Enter step: ";
-    }
+    new_data.step = verify_step(pipeline);
     return new_data;
 }
 // Function to edit existing data for calculations
@@ -301,7 +325,37 @@ void action_edit_data() {
     }
 }
 
-void action_calculate() {
+double calculate_product(double x, int n) {
+    if (n <= 7) {
+        throw invalid_argument("For x = " + std::to_string(x) + ": n(" + std::to_string(n) + ") must be greater than 7 when x < 7");
+    }
+    double mlt = 1;
+    for (int i = 3; i <= n - 4; i++) {
+        mlt = mlt * (x / (5.0 + i));
+    }
+    return mlt;
+}
+double calculate_product_sum(double x, double n) {
+    if (n <= 0) {//but this part of exuation requires n to be greater than 0, so we check it and throw exception if it's not
+        throw invalid_argument("For x = " + std::to_string(x) + ": n(" + std::to_string(n) + ") must be greater than 0 when x >= 7");
+    }
+    double sum = 0, mlt;
+    for (int j = 0; j <= n; j++) {
+        mlt = 1;
+        for (int i = 1; i <= (n + 1); i++) {
+            if (i == j) {
+                //cout << "\033[43mSKIP: i = j, division by zero prevented\033[m" << endl;
+                continue;
+            }
+            mlt = mlt * ((1.0 / (2.0 * x)) + (3.0 * i / (i - j)));
+        }
+        sum = sum + mlt;
+    }
+    return sum;
+}
+
+
+void action_calculate(vector<variables_for_calculations> &data_for_calculations) {
 	cout << "\033[2J\033[H";// Clear console
 	draw_header("Calculations");// this function doen't have menu, so we draw header with name of action
 	if (data_for_calculations.size() == 0) { //check if there's any data to calculate, if not - show message and exit
@@ -310,77 +364,43 @@ void action_calculate() {
         return;
     }
     int n, i;
-    double lower_limit, upper_limit, step, x, answer, mlt;
+    double x, answer, mlt;
 	// Main loop to perform calculations for each set of data
     for (int index_of_calculation = 0; index_of_calculation < data_for_calculations.size(); index_of_calculation++) {
-        n = data_for_calculations[index_of_calculation].n;
-        lower_limit = data_for_calculations[index_of_calculation].lower_limit;
-        upper_limit = data_for_calculations[index_of_calculation].upper_limit;
-        step = data_for_calculations[index_of_calculation].step;
+        int &n = data_for_calculations[index_of_calculation].n;
+        double &lower_limit = data_for_calculations[index_of_calculation].lower_limit;
+        double& upper_limit = data_for_calculations[index_of_calculation].upper_limit;
+        double& step = data_for_calculations[index_of_calculation].step;
         x = lower_limit;
         vector<vector<double>> solutions;
         data_for_calculations[index_of_calculation].error = false;
         data_for_calculations[index_of_calculation].error_message = "";
         cout << "Data set " << index_of_calculation + 1 << ":" << endl;
+        cout << "lower limit: " << lower_limit << ", upper limit: " << upper_limit << ", step: " << step << " n: " << n << endl;
 		// Loop to calculate answers for x from lower_limit to upper_limit with given step
         while (x <= upper_limit) {
 			try { // Try-catch block to handle exceptions during calculations
-                cout << "\033[102;97mCalculation for\033[m x = " << x << endl;
                 if (x < 7) {
-                    cout << "\033[44mx < 7\033[m" << endl;
-					if (n <= 7) {//this part of exuation requires n to be greater than 7, so we check it and throw exception if it's not
-                        throw invalid_argument("For x = " + std::to_string(x) + ": n(" + std::to_string(n) + ") must be greater than 7 when x < 7");
-                    }
-                    mlt = 1;
-                    cout << "    \033[107; 30mmlt = 1\033[m" << endl;
-                    for (i = 3; i <= n - 4; i++) {
-                        cout << "    \033[107;30mi = " << i << "\033[m" << endl;
-                        cout << "    mlt = mlt * (x / (5 + i )) -> " << mlt << " * (" << x << " / (5 + " << i << ")) = ";
-                        mlt = mlt * (x / (5.0 + i));
-                        cout << mlt << endl;
-                    }
-                    answer = mlt;
-                    cout << "\033[44mAnswer for x = " << x << " is\033[m " << answer << endl;
+                    solutions.push_back({ x, calculate_product(x, n) }); // Store the result
                 }
 				else { // if x >= 7
-					if (n <= 0) {//but this part of exuation requires n to be greater than 0, so we check it and throw exception if it's not
-                        throw invalid_argument("For x = " + std::to_string(x) + ": n(" + std::to_string(n) + ") must be greater than 0 when x >= 7");
-                    }
-					//ви справді це все читаєте/перевіряєте? якщо так то, ура? я не знаю що тут сказати. I LIKE TOOOOOOOOOOOOOOOOOOOOOTHYYYYYYYYYYYYYYYYYYYYYYYYYYYY! Black scary night fury!
-                    cout << "  \033[44mx >=7\033[m\n    \033[107;30msum = 0\033[m\n    \033[107;30mj = 0\033[m" << endl;
-                    double sum = 0;
-                    for (int j = 0; j <= n; j++) {
-                        mlt = 1;
-                        for (i = 1; i <= (n + 1); i++) {
-                            cout << "      \033[107;30mmlt = " << mlt << "\033[m\n" << "      \033[107;30mi = " << i << "\033[m\n" << "      \033[107;30mj = " << j << "\033[m" << endl;
-                            cout << "      mlt = mlt * ((1 / (2 * x) + (3*i/(i-j))) -> " << mlt << "*((1 / (2 * " << x << ") + (3 *" << i << "/(" << i << "-" << j << "))) = ";
-                            if (i == j) {
-                                cout << "\033[43mSKIP: i = j, division by zero prevented\033[m" << endl;
-                                continue;
-                            }
-                            mlt = mlt * ((1.0 / (2.0 * x)) + (3.0 * i / (i - j)));
-                            cout << mlt << endl;
-                        }
-                        cout << "    sum = sum + mlt -> sum = " << sum << " + " << mlt << " = ";
-                        sum = sum + mlt;
-                        cout << sum << endl;
-                    }
-                    answer = sum;
-                    cout << "\033[44mAnswer for x = " << x << " is\033[m " << answer << endl;
+                    solutions.push_back({ x, calculate_product_sum(x, n)}); // Store the result
                 };
-				solutions.push_back({ x, answer });// Store the result
+                cout << "\033[102;97mCalculation for\033[m x = " << x << ": y = " << solutions.back()[1] << endl;
+				
             }
 			catch (const exception& e) {// Catch standard exceptions
                 data_for_calculations[index_of_calculation].error = true;
                 data_for_calculations[index_of_calculation].error_message += std::string(e.what()) + "\n";
-                draw_error("Error in data set " + std::to_string(index_of_calculation + 1) + ": " + e.what());
+                cout << "\033[101;97mCalculation for\033[m x = " << x << ": Error: " << e.what() << endl;
             }
 			catch (...) {// Catch any other exceptions
                 data_for_calculations[index_of_calculation].error = true;
                 data_for_calculations[index_of_calculation].error_message += "Unknown error\n";
-                draw_error("Unknown error in data set " + std::to_string(index_of_calculation + 1));
+                cout << "\033[101;97mCalculation for\033[m x = " << x << ": Error: Unknown error " << endl;
             }
 			x = x + step;// Increment x by step
+            //ви справді це все читаєте/перевіряєте? якщо так то, ура? я не знаю що тут сказати. I LIKE TOOOOOOOOOOOOOOOOOOOOOTHYYYYYYYYYYYYYYYYYYYYYYYYYYYY! Black scary night fury!
         }
 		data_for_calculations[index_of_calculation].solutions = solutions;// Store all results in the data structure
 		data_for_calculations[index_of_calculation].calculated = true;// Mark as calculated
@@ -388,7 +408,7 @@ void action_calculate() {
         cout << endl;
     }
 
-    system("pause");
+    //system("pause");
 }
 // Function to view results of calculations
 void action_view_results() {
